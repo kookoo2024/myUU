@@ -1,0 +1,7 @@
+export const CLASSROOM_STORAGE_KEY = 'xyz-classroom-v1'
+export const CLASSROOM_DIRECTORY_STORAGE_KEY = 'xyz-classrooms-v2'
+export const QUESTION_BANK_STORAGE_KEY = 'xyz-custom-questions-v1'
+export const PACK_DRAFTS_STORAGE_KEY = 'xyz-pack-drafts-v1'
+export const APPLIED_PACK_STORAGE_KEY = 'xyz-applied-pack-v1'
+export const PRACTICE_ATTEMPTS_STORAGE_KEY = 'xyz-practice-attempts-v1'
+export const PRACTICE_ATTEMPT_SYNC_STORAGE_KEY = 'xyz-practice-attempt-sync-v1'

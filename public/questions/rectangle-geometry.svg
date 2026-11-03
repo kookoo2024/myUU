@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 250" role="img" aria-labelledby="title desc">
+  <title id="title">矩形 ABCD 几何图</title>
+  <desc id="desc">矩形 ABCD 中，AB 等于 4，BC 等于 3，点 E 在 CD 上且 DE 等于 1，连接 EA 和 EB。</desc>
+  <rect width="560" height="250" rx="18" fill="#f3ecd9"/>
+  <rect x="78" y="46" width="380" height="150" fill="#fbf7ec" stroke="#183127" stroke-width="3"/>
+  <path d="M173 46 78 196M173 46 458 196" fill="none" stroke="#28aeb5" stroke-width="3"/>
+  <path d="M78 46H458V196H78Z" fill="none" stroke="#183127" stroke-width="3"/>
+  <circle cx="78" cy="196" r="5" fill="#183127"/>
+  <circle cx="458" cy="196" r="5" fill="#183127"/>
+  <circle cx="458" cy="46" r="5" fill="#183127"/>
+  <circle cx="78" cy="46" r="5" fill="#183127"/>
+  <circle cx="173" cy="46" r="5.5" fill="#d79a3e"/>
+  <text x="58" y="218" fill="#183127" font-size="21" font-family="Microsoft YaHei UI, sans-serif">A</text>
+  <text x="464" y="218" fill="#183127" font-size="21" font-family="Microsoft YaHei UI, sans-serif">B</text>
+  <text x="464" y="38" fill="#183127" font-size="21" font-family="Microsoft YaHei UI, sans-serif">C</text>
+  <text x="56" y="37" fill="#183127" font-size="21" font-family="Microsoft YaHei UI, sans-serif">D</text>
+  <text x="164" y="37" fill="#9a681b" font-size="21" font-family="Microsoft YaHei UI, sans-serif">E</text>
+  <text x="255" y="226" fill="#52655d" font-size="18" font-family="Microsoft YaHei UI, sans-serif">AB = 4</text>
+  <text x="472" y="128" fill="#52655d" font-size="18" font-family="Microsoft YaHei UI, sans-serif">BC = 3</text>
+  <text x="92" y="18" fill="#9a681b" font-size="15" font-family="Microsoft YaHei UI, sans-serif">DE = 1</text>
+  <path d="M164 52a16 16 0 0 1 18 0" fill="none" stroke="#d79a3e" stroke-width="2"/>
+</svg>
