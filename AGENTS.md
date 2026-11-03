@@ -50,6 +50,7 @@
 - 运维接口为 `GET /api/admin/status`、`GET /api/admin/backups` 和 `POST /api/admin/backups`，必须经过教师登录保护，并纳入发布版端到端检查。
 - 在线更新接口为 `GET /api/admin/update`、`GET /api/admin/update/check`、`POST /api/admin/update/download` 和 `POST /api/admin/update/install`，必须经过教师登录保护。
 - 在线更新只接受 `vX.Y.Z` 正式版本；必须校验版本、文件名、大小和 SHA256，下载文件不得超出更新目录。
+- 在线更新允许在 GitHub 下载链路失败时使用可配置镜像前缀回退，但镜像文件仍必须通过 GitHub 清单中的 SHA256 校验。
 - EXE 自动替换只能由计划任务守护的 `deploy/run-server.ps1` 执行；直接运行 EXE 时只能检查和下载，不能自动替换。
 - 替换前必须备份旧 EXE；新版本必须通过 `/api/health` 并稳定运行后才标记成功，启动失败必须自动回滚。
 - 含中文的 `deploy/*.ps1` 必须保存为 UTF-8 BOM；发布标签必须与更新清单版本一致。

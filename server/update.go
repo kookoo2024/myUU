@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -28,18 +29,19 @@ const (
 var updateVersionPattern = regexpMustCompileVersion()
 
 type UpdateManager struct {
-	repository  string
-	current     string
-	dataDir     string
-	updateDir   string
-	managed     bool
-	enabled     bool
-	releaseAPI  string
-	httpClient  *http.Client
-	mu          sync.Mutex
-	operationMu sync.Mutex
-	latest      *latestUpdate
-	lastChecked time.Time
+	repository    string
+	current       string
+	dataDir       string
+	updateDir     string
+	managed       bool
+	enabled       bool
+	releaseAPI    string
+	downloadProxy string
+	httpClient    *http.Client
+	mu            sync.Mutex
+	operationMu   sync.Mutex
+	latest        *latestUpdate
+	lastChecked   time.Time
 }
 
 type UpdateStatus struct {
@@ -107,16 +109,34 @@ func NewUpdateManager(dataDir string) *UpdateManager {
 		repository = defaultUpdateRepository
 	}
 	enabled := !envFalse("XYZ_UPDATE_ENABLED")
+	downloadProxy := strings.TrimSpace(os.Getenv("XYZ_UPDATE_DOWNLOAD_PROXY"))
+	if downloadProxy == "" {
+		downloadProxy = "https://gh-proxy.com/"
+	}
+	if downloadProxy == "-" || strings.EqualFold(downloadProxy, "off") {
+		downloadProxy = ""
+	}
 	updateDir := filepath.Join(dataDir, "updates")
 	return &UpdateManager{
-		repository: repository,
-		current:    serverVersion,
-		dataDir:    dataDir,
-		updateDir:  updateDir,
-		managed:    envTrue("XYZ_MANAGED_RUNNER"),
-		enabled:    enabled,
-		releaseAPI: "https://api.github.com/repos/" + repository + "/releases/latest",
-		httpClient: &http.Client{Timeout: 3 * time.Minute},
+		repository:    repository,
+		current:       serverVersion,
+		dataDir:       dataDir,
+		updateDir:     updateDir,
+		managed:       envTrue("XYZ_MANAGED_RUNNER"),
+		enabled:       enabled,
+		releaseAPI:    "https://api.github.com/repos/" + repository + "/releases/latest",
+		downloadProxy: downloadProxy,
+		httpClient: &http.Client{
+			Timeout: 3 * time.Minute,
+			Transport: &http.Transport{
+				Proxy:                 http.ProxyFromEnvironment,
+				DialContext:           (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+				ForceAttemptHTTP2:     true,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 30 * time.Second,
+				ExpectContinueTimeout: time.Second,
+			},
+		},
 	}
 }
 
@@ -194,8 +214,9 @@ func (m *UpdateManager) Download(ctx context.Context) (UpdateCheck, error) {
 	}
 	fileName := updateFileName(latest.Manifest.Version)
 	targetPath := filepath.Join(m.updateDir, fileName)
-	if err := m.downloadAndVerify(ctx, asset.BrowserDownloadURL, targetPath, latest.Manifest); err != nil {
-		return m.checkResult(latest), err
+	downloadErr := m.downloadWithFallback(ctx, asset.BrowserDownloadURL, targetPath, latest.Manifest)
+	if downloadErr != nil {
+		return m.checkResult(latest), downloadErr
 	}
 	prepared := preparedUpdate{
 		Version:     latest.Manifest.Version,
@@ -209,6 +230,41 @@ func (m *UpdateManager) Download(ctx context.Context) (UpdateCheck, error) {
 		return m.checkResult(latest), fmt.Errorf("保存更新准备信息失败：%w", err)
 	}
 	return m.checkResult(latest), nil
+}
+
+func (m *UpdateManager) downloadWithFallback(
+	ctx context.Context,
+	rawURL string,
+	targetPath string,
+	manifest releaseManifest,
+) error {
+	directCtx, cancelDirect := context.WithTimeout(ctx, 45*time.Second)
+	directErr := m.downloadAndVerify(directCtx, rawURL, targetPath, manifest)
+	cancelDirect()
+	if directErr == nil {
+		return nil
+	}
+
+	fallbackURL := proxyDownloadURL(m.downloadProxy, rawURL)
+	if fallbackURL == "" || fallbackURL == rawURL {
+		return directErr
+	}
+	if err := m.downloadAndVerify(ctx, fallbackURL, targetPath, manifest); err != nil {
+		return fmt.Errorf("GitHub 下载失败（%v），备用镜像下载也失败：%w", directErr, err)
+	}
+	return nil
+}
+
+func proxyDownloadURL(proxyPrefix string, rawURL string) string {
+	proxyPrefix = strings.TrimSpace(proxyPrefix)
+	rawURL = strings.TrimSpace(rawURL)
+	if proxyPrefix == "" || rawURL == "" {
+		return ""
+	}
+	if proxyPrefix == "-" || strings.EqualFold(proxyPrefix, "off") {
+		return ""
+	}
+	return strings.TrimRight(proxyPrefix, "/") + "/" + rawURL
 }
 
 func (m *UpdateManager) PrepareInstall() error {

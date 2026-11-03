@@ -109,6 +109,7 @@ $env:XYZ_ADMIN_PASSWORD = '仅用于首次初始化的强密码'
 - `XYZ_BACKUP_ENABLED=0`：关闭自动备份。
 - `XYZ_UPDATE_REPO`：在线更新使用的 GitHub 仓库，默认 `kookoo2024/myUU`。
 - `XYZ_UPDATE_ENABLED=0`：关闭在线更新；课堂局域网使用不受影响。
+- `XYZ_UPDATE_DOWNLOAD_PROXY`：GitHub 下载受阻时使用的镜像前缀，默认 `https://gh-proxy.com/`；设为 `-` 可关闭镜像回退。
 
 如果局域网无法访问，需要在 Windows 防火墙中允许 `xyz-server.exe` 的专用网络入站连接。
 
@@ -163,6 +164,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\install-autosta
 - `rollback/`：替换前的旧程序备份。
 
 在线更新只接受 `vX.Y.Z` 形式的正式 GitHub Release。客户端读取发布中的 `update.json` 和 `xyz-server-windows-amd64.exe`，发布中同时提供 `SHA256SUMS.txt` 供人工核验。发布标签必须与 `update.json` 中的版本完全一致。
+
+更新程序会先直接连接 GitHub，TLS 或连接失败时再尝试镜像前缀。无论从哪个来源下载，安装前都必须与 GitHub 清单中的 SHA256 完全一致，否则拒绝安装。
 
 发布新版本：
 

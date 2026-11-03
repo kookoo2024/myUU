@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -169,5 +170,66 @@ func TestUpdateDownloadRejectsChecksumMismatch(t *testing.T) {
 
 	if _, err := manager.Download(context.Background()); err == nil {
 		t.Fatal("expected checksum mismatch to fail")
+	}
+}
+
+func TestUpdateDownloadFallsBackToProxy(t *testing.T) {
+	updatePayload := []byte("proxy-update-executable")
+	sum := sha256.Sum256(updatePayload)
+	manifest := releaseManifest{
+		Version: "0.3.1",
+		Asset:   "xyz-server-windows-amd64.exe",
+		SHA256:  hex.EncodeToString(sum[:]),
+		Size:    int64(len(updatePayload)),
+	}
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/latest":
+			_ = json.NewEncoder(w).Encode(githubRelease{
+				TagName: "v0.3.1",
+				Assets: []githubAsset{
+					{Name: "update.json", BrowserDownloadURL: server.URL + "/update.json"},
+					{
+						Name:               manifest.Asset,
+						BrowserDownloadURL: server.URL + "/blocked.exe",
+						Size:               int64(len(updatePayload)),
+					},
+				},
+			})
+		case r.URL.Path == "/update.json":
+			_ = json.NewEncoder(w).Encode(manifest)
+		case r.URL.Path == "/blocked.exe":
+			http.Error(w, "direct download unavailable", http.StatusServiceUnavailable)
+		case strings.HasPrefix(r.URL.Path, "/proxy/"):
+			_, _ = w.Write(updatePayload)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	manager := NewUpdateManager(t.TempDir())
+	manager.current = "0.3.0"
+	manager.enabled = true
+	manager.releaseAPI = server.URL + "/latest"
+	manager.downloadProxy = server.URL + "/proxy/"
+	manager.httpClient = server.Client()
+
+	downloaded, err := manager.Download(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if downloaded.PreparedVersion != "0.3.1" {
+		t.Fatalf("unexpected downloaded status: %+v", downloaded)
+	}
+	preparedPath := filepath.Join(manager.updateDir, updateFileName("0.3.1"))
+	actual, size, err := fileSHA256(preparedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual != manifest.SHA256 || size != manifest.Size {
+		t.Fatalf("proxy update mismatch: %s %d", actual, size)
 	}
 }
