@@ -47,6 +47,11 @@ await page.screenshot({ path: path.join(outputDir, 'release-server-1366x768.png'
 await page.getByRole('button', { name: '打开服务器运维中心' }).click()
 await page.waitForSelector('.server-admin-panel')
 await page.waitForSelector('.server-admin-live.is-active')
+await page.waitForSelector('.server-admin-update')
+const updateStatusText = await page.locator('.server-admin-update').innerText()
+if (!updateStatusText.includes('检查更新') || !updateStatusText.includes('当前 v')) {
+  throw new Error(`运维中心没有显示在线更新状态：${updateStatusText}`)
+}
 await page.waitForFunction(() => {
   const button = document.querySelector('.server-admin-backup-action > button')
   return button instanceof HTMLButtonElement && !button.disabled

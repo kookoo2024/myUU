@@ -72,6 +72,15 @@ try {
   const anonymousBootstrap = await fetch(`${baseUrl}/api/bootstrap`)
   assert(anonymousBootstrap.status === 401, '未登录仍可读取教师工作台数据')
 
+  const anonymousUpdate = await fetch(`${baseUrl}/api/admin/update`)
+  assert(anonymousUpdate.status === 401, '未登录仍可读取在线更新状态')
+
+  const anonymousInstall = await fetch(`${baseUrl}/api/admin/update/install`, {
+    method: 'POST',
+    headers: { 'X-XYZ-Request': '1' },
+  })
+  assert(anonymousInstall.status === 401, '未登录仍可触发在线更新安装')
+
   const publicPractice = await fetch(`${baseUrl}/api/practice/bootstrap`)
   assert(publicPractice.status === 200, '学生练习入口被错误拦截')
 
@@ -142,6 +151,7 @@ try {
 
   console.log(JSON.stringify({
     teacherDataProtected: 'passed',
+    updateRoutesProtected: 'passed',
     publicPracticeRoute: 'passed',
     passwordVerification: 'passed',
     secureSessionCookie: 'passed',

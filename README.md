@@ -16,6 +16,7 @@
 - 教师工作台使用密码登录，题库、班级、成绩与写接口受会话保护；学生 `/practice` 保持独立入口
 - SQLite 每日自动热备份、完整性校验并轮换旧备份
 - 主界面底部“本机服务”入口可打开运维中心，查看数据库大小、运行时长、备份目录和最近快照，并可立即手动备份
+- 运维中心支持检查 GitHub 正式版本、下载校验、安装并重启；更新失败会自动恢复旧版本
 - 题库支持新增、编辑、删除、批量导入和导出
 - 自建题支持 LaTeX、英语朗读、图片、知识点和难度
 - 可筛题组包、设置题数与答题秒数并应用到课堂
@@ -33,6 +34,8 @@
 - `practice_attempts`：单人练习和测试成绩、答题明细与完成时间
 - `GET /api/admin/status`：受教师登录保护的服务器、SQLite 与备份概况
 - `GET /api/admin/backups`、`POST /api/admin/backups`：受教师登录保护的备份列表与手动备份
+- `GET /api/admin/update`、`GET /api/admin/update/check`：受教师登录保护的版本状态与在线检查
+- `POST /api/admin/update/download`、`POST /api/admin/update/install`：下载校验并准备安装在线更新
 
 ## 开发
 
@@ -104,6 +107,8 @@ $env:XYZ_ADMIN_PASSWORD = '仅用于首次初始化的强密码'
 - `XYZ_BACKUP_INTERVAL_HOURS`：备份间隔小时数，默认 `24`。
 - `XYZ_BACKUP_KEEP`：保留备份数量，默认 `30`。
 - `XYZ_BACKUP_ENABLED=0`：关闭自动备份。
+- `XYZ_UPDATE_REPO`：在线更新使用的 GitHub 仓库，默认 `kookoo2024/myUU`。
+- `XYZ_UPDATE_ENABLED=0`：关闭在线更新；课堂局域网使用不受影响。
 
 如果局域网无法访问，需要在 Windows 防火墙中允许 `xyz-server.exe` 的专用网络入站连接。
 
@@ -139,6 +144,37 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\install-autosta
 
 运行日志位于数据目录下的 `logs/server-日期.log`，默认保留 14 天。若需要在关机重启后完全无人值守，仍应在 Windows 中配置自动登录或使用 `-RunAtStartup`。
 
+## 一键在线更新
+
+在线更新必须由 `deploy/run-server.ps1` 守护启动。直接双击 EXE 时，运维中心仍可检查 GitHub 和下载更新，但为了避免课堂中途无法恢复，不允许自动替换正在运行的程序。
+
+正确安装计划任务后，教师在“本机服务”运维中心里按以下顺序操作：
+
+1. 点击“检查更新”。
+2. 发现新版本后点击“下载 v版本号”，服务会校验文件大小和 SHA256。
+3. 点击“安装并重启”，守护脚本会备份旧程序并启动新版本。
+4. 新版本通过健康检查并稳定运行 12 秒后才会标记成功；启动失败会自动回滚。
+
+更新相关文件都在数据目录的 `updates/` 下：
+
+- `prepared-update.json`：已下载并通过校验的更新。
+- `pending-update.json`：等待服务退出后安装的更新。
+- `last-update.json`：最近一次替换、成功或回滚记录。
+- `rollback/`：替换前的旧程序备份。
+
+在线更新只接受 `vX.Y.Z` 形式的正式 GitHub Release。客户端读取发布中的 `update.json` 和 `xyz-server-windows-amd64.exe`，发布中同时提供 `SHA256SUMS.txt` 供人工核验。发布标签必须与 `update.json` 中的版本完全一致。
+
+发布新版本：
+
+```powershell
+git tag v0.3.1
+git push origin v0.3.1
+```
+
+GitHub Actions 会执行测试、构建 Windows 程序并生成三个 Release 文件。不要手工修改 `update.json` 或文件名，否则客户端会拒绝安装。
+
+当前 SHA256 机制可以防止下载损坏和普通中间篡改，但还不能替代 Windows Authenticode 代码签名。如果 GitHub 账号或发布流水线被完全控制，攻击者仍可能发布恶意程序；正式商用前应配置代码签名和发布账号的多重验证。
+
 ## Cloudflare Tunnel
 
 仓库提供示例配置 `deploy/cloudflared.example.yml`。创建命名隧道并完成 DNS 绑定后，把配置中的 UUID、域名和凭据路径替换成实际值，再运行：
@@ -162,6 +198,7 @@ npm run visual
 npm run server:test
 npm run auth:check
 npm run server:sync
+npm run update:check
 npm run server:build
 npm run release:check
 ```

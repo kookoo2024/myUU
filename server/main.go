@@ -45,8 +45,19 @@ func main() {
 		log.Printf("自动备份目录：%s", backupManager.backupDir)
 	}
 
+	restartCh := make(chan struct{}, 1)
+	updateManager := NewUpdateManager(dataDir)
+	api := NewAPI(store, backupManager)
+	api.SetUpdateManager(updateManager)
+	api.SetRestartHandler(func() {
+		select {
+		case restartCh <- struct{}{}:
+		default:
+		}
+	})
+
 	mux := http.NewServeMux()
-	NewAPI(store, backupManager).Register(mux)
+	api.Register(mux)
 	mux.Handle("/", spaHandler(embeddedWeb))
 
 	addr := envOrDefault("XYZ_ADDR", ":8787")
@@ -55,7 +66,7 @@ func main() {
 		Handler:           securityHeaders(requestLogger(mux)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
+		WriteTimeout:      4 * time.Minute,
 		IdleTimeout:       60 * time.Second,
 	}
 
@@ -69,7 +80,12 @@ func main() {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
+	select {
+	case <-stop:
+		log.Printf("收到停止信号")
+	case <-restartCh:
+		log.Printf("收到在线更新重启请求")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()

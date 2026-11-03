@@ -1,7 +1,7 @@
 {
   "name": "xyz-classroom-arena",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -16,8 +16,10 @@
     "server:test": "go test ./server/...",
     "auth:check": "node scripts/auth-check.mjs",
     "server:build": "node scripts/build-server.mjs",
+    "release:package": "node scripts/package-release.mjs",
     "server:sync": "node scripts/server-sync-check.mjs",
-    "release:check": "node scripts/release-check.mjs"
+    "release:check": "node scripts/release-check.mjs",
+    "update:check": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\update-runner-check.ps1"
   },
   "dependencies": {
     "katex": "^0.19.1",

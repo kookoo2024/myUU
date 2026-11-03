@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const serverVersion = "0.2.0"
+var serverVersion = "0.3.0-dev"
 
 func (api *API) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 	databaseBytes, walBytes, err := api.databaseSizes()

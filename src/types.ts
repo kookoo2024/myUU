@@ -181,3 +181,22 @@ export interface ServerAdminStatus {
   latestBackup: BackupInfo | null
   serverTime: string
 }
+
+export interface UpdateStatus {
+  enabled: boolean
+  repository: string
+  currentVersion: string
+  managedRunner: boolean
+  preparedVersion: string
+  pendingVersion: string
+  canInstall: boolean
+  lastCheckedAt: string
+}
+
+export interface UpdateCheck extends UpdateStatus {
+  latestVersion: string
+  updateAvailable: boolean
+  releaseUrl: string
+  publishedAt: string
+  notes: string
+}

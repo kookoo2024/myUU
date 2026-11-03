@@ -1,4 +1,4 @@
-import { cp, mkdir, rm } from 'node:fs/promises'
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
@@ -9,6 +9,12 @@ const webDir = path.join(root, 'server', 'web')
 const releaseDir = path.join(root, 'release')
 const output = path.join(releaseDir, 'xyz-server.exe')
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
+const version = String(process.env.XYZ_VERSION ?? packageJson.version).trim().replace(/^v/, '')
+
+if (!/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
+  throw new Error(`版本号格式不正确：${version}`)
+}
 
 if (!webDir.startsWith(path.join(root, 'server') + path.sep)) {
   throw new Error('拒绝操作工作区之外的前端目录')
@@ -32,8 +38,16 @@ await run(npmCommand, ['run', 'build'], { shell: process.platform === 'win32' })
 await rm(webDir, { recursive: true, force: true })
 await mkdir(webDir, { recursive: true })
 await cp(distDir, webDir, { recursive: true })
+await writeFile(path.join(webDir, '.keep'), '', 'utf8')
 await mkdir(releaseDir, { recursive: true })
 
-await run('go', ['build', '-trimpath', '-ldflags=-s -w', '-o', output, './server'])
+await run('go', [
+  'build',
+  '-trimpath',
+  `-ldflags=-s -w -X main.serverVersion=${version}`,
+  '-o',
+  output,
+  './server',
+])
 
-console.log(`服务端构建完成：${output}`)
+console.log(`服务端构建完成：${output}（v${version}）`)

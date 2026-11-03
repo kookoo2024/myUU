@@ -17,6 +17,8 @@ type API struct {
 	store     *Store
 	auth      *TeacherAuth
 	backups   *BackupManager
+	updater   *UpdateManager
+	restart   func()
 	startedAt time.Time
 }
 
@@ -31,6 +33,14 @@ func NewAPI(store *Store, backupManagers ...*BackupManager) *API {
 		backups:   backups,
 		startedAt: time.Now(),
 	}
+}
+
+func (api *API) SetUpdateManager(updater *UpdateManager) {
+	api.updater = updater
+}
+
+func (api *API) SetRestartHandler(restart func()) {
+	api.restart = restart
 }
 
 func (api *API) Register(mux *http.ServeMux) {
@@ -49,6 +59,10 @@ func (api *API) Register(mux *http.ServeMux) {
 	mux.Handle("GET /api/admin/status", api.auth.Require(http.HandlerFunc(api.handleAdminStatus)))
 	mux.Handle("GET /api/admin/backups", api.auth.Require(http.HandlerFunc(api.handleBackupList)))
 	mux.Handle("POST /api/admin/backups", api.auth.Require(http.HandlerFunc(api.handleBackupCreate)))
+	mux.Handle("GET /api/admin/update", api.auth.Require(http.HandlerFunc(api.handleUpdateStatus)))
+	mux.Handle("GET /api/admin/update/check", api.auth.Require(http.HandlerFunc(api.handleUpdateCheck)))
+	mux.Handle("POST /api/admin/update/download", api.auth.Require(http.HandlerFunc(api.handleUpdateDownload)))
+	mux.Handle("POST /api/admin/update/install", api.auth.Require(http.HandlerFunc(api.handleUpdateInstall)))
 }
 
 func (api *API) handleHealth(w http.ResponseWriter, _ *http.Request) {
